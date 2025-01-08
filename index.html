@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phone Authentication - Send OTP</title>
+  <style>
+    /* Add your CSS styles here */
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      width: 300px;
+    }
+    .section {
+      margin-bottom: 15px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .error-message {
+      color: red;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Phone Authentication</h1>
+    <div id="phone-number-section" class="section">
+      <input type="text" id="phone-number" placeholder="Enter your phone number" />
+      <button id="send-code-button">Send OTP</button>
+    </div>
+    <div id="error-message" class="error-message"></div>
+    <div id="recaptcha-container"></div>
+  </div>
+
+  <script type="module">
+    import { auth, recaptchaVerifier } from './firebase-config.js';
+    import { signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/9.1.2/firebase-auth.js";
+
+    let verificationId;
+
+    // Ensure reCAPTCHA is ready before proceeding
+    recaptchaVerifier.render().then(function(widgetId) {
+      console.log("reCAPTCHA is ready");
+
+      document.getElementById("send-code-button").addEventListener("click", function() {
+        let phoneNumber = document.getElementById("phone-number").value;
+
+        // Validate phone number format
+        const phonePattern = /^\+(\d{1,4})\d{6,14}$/;
+        if (!phonePattern.test(phoneNumber)) {
+          document.getElementById("error-message").textContent = "Please enter a valid phone number with country code (e.g., +1 for USA).";
+          return;
+        }
+
+        // Send verification code using reCAPTCHA and phone number
+        signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier)
+          .then(function(confirmationResult) {
+            // SMS sent. Store verificationId for use in verification
+            verificationId = confirmationResult.verificationId;
+            sessionStorage.setItem("verificationId", verificationId);
+            
+            // Redirect to OTP entry page
+            window.location.href = "verify-otp.html";
+          })
+          .catch(function(error) {
+            document.getElementById("error-message").textContent = "Error during phone number verification: " + error.message;
+          });
+      });
+    });
+  </script>
+</body>
+</html>
