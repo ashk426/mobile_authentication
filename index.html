@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Phone Authentication - Send OTP and Verify OTP</title>
   <style>
-    /* Add your CSS styles here */
     body {
       font-family: Arial, sans-serif;
       display: flex;
@@ -48,6 +47,11 @@
       font-size: 12px;
       margin-top: 10px;
     }
+    .success-message {
+      color: green;
+      font-size: 14px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -68,6 +72,7 @@
       <button id="verify-button">Verify OTP</button>
     </div>
     <div id="error-message-otp" class="error-message"></div>
+    <div id="success-message" class="success-message" style="display: none;">Registration Successful!</div>
   </div>
 
   <script type="module">
@@ -84,10 +89,12 @@
 
     // Initialize Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.2/firebase-app.js";
-    import { getAuth, RecaptchaVerifier, PhoneAuthProvider, signInWithCredential } from "https://www.gstatic.com/firebasejs/9.1.2/firebase-auth.js";
+    import { getAuth, RecaptchaVerifier, PhoneAuthProvider, signInWithCredential, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/9.1.2/firebase-auth.js";
     
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+
+    let verificationId;
 
     // Initialize reCAPTCHA verifier
     const recaptchaVerifier = new RecaptchaVerifier('recaptcha-container', {
@@ -97,8 +104,6 @@
       }
     }, auth);
 
-    let verificationId;
-
     // Ensure reCAPTCHA is ready before proceeding
     recaptchaVerifier.render().then(function(widgetId) {
       console.log("reCAPTCHA is ready");
@@ -107,27 +112,38 @@
       document.getElementById("send-code-button").addEventListener("click", function() {
         let phoneNumber = document.getElementById("phone-number").value;
 
-        // Validate phone number format
-        const phonePattern = /^\+(\d{1,4})\d{6,14}$/;
-        if (!phonePattern.test(phoneNumber)) {
-          document.getElementById("error-message").textContent = "Please enter a valid phone number with country code (e.g., +1 for USA).";
-          return;
-        }
+        // Test number and OTP for demo purpose
+        const testPhoneNumber = "+919373871618";
+        const testOtp = "183956";
 
-        // Send verification code using reCAPTCHA and phone number
-        signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier)
-          .then(function(confirmationResult) {
-            // SMS sent. Store verificationId for use in verification
-            verificationId = confirmationResult.verificationId;
-            sessionStorage.setItem("verificationId", verificationId);
-            
-            // Switch to OTP verification screen
-            document.getElementById("phone-auth-container").style.display = "none";
-            document.getElementById("otp-auth-container").style.display = "block";
-          })
-          .catch(function(error) {
-            document.getElementById("error-message").textContent = "Error during phone number verification: " + error.message;
-          });
+        if (phoneNumber === testPhoneNumber) {
+          // Automatically proceed with OTP verification for the test case
+          document.getElementById("phone-auth-container").style.display = "none";
+          document.getElementById("otp-auth-container").style.display = "block";
+          document.getElementById("error-message").textContent = ""; // Clear any error message
+        } else {
+          // Validate phone number format
+          const phonePattern = /^\+(\d{1,4})\d{6,14}$/;
+          if (!phonePattern.test(phoneNumber)) {
+            document.getElementById("error-message").textContent = "Please enter a valid phone number with country code (e.g., +1 for USA).";
+            return;
+          }
+
+          // Send verification code using reCAPTCHA and phone number
+          signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier)
+            .then(function(confirmationResult) {
+              // SMS sent. Store verificationId for use in verification
+              verificationId = confirmationResult.verificationId;
+              sessionStorage.setItem("verificationId", verificationId);
+              
+              // Switch to OTP verification screen
+              document.getElementById("phone-auth-container").style.display = "none";
+              document.getElementById("otp-auth-container").style.display = "block";
+            })
+            .catch(function(error) {
+              document.getElementById("error-message").textContent = "Error during phone number verification: " + error.message;
+            });
+        }
       });
 
       // OTP verification
@@ -139,26 +155,34 @@
           return;
         }
 
-        // Retrieve the verificationId from sessionStorage
-        const verificationId = sessionStorage.getItem("verificationId");
+        // Test OTP check for the demo number
+        const testOtp = "183956";
+        if (verificationCode === testOtp) {
+          document.getElementById("success-message").style.display = "block";
+          document.getElementById("error-message-otp").textContent = ""; // Clear any previous error message
+        } else {
+          // Retrieve the verificationId from sessionStorage (for actual cases)
+          const verificationId = sessionStorage.getItem("verificationId");
 
-        if (!verificationId) {
-          document.getElementById("error-message-otp").textContent = "Verification ID not found. Please restart the process.";
-          return;
+          if (!verificationId) {
+            document.getElementById("error-message-otp").textContent = "Verification ID not found. Please restart the process.";
+            return;
+          }
+
+          // Create PhoneAuthCredential using the verificationId and code
+          const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
+
+          // Sign in with the credential
+          signInWithCredential(auth, credential)
+            .then(function(result) {
+              console.log("User signed in successfully:", result);
+              document.getElementById("success-message").style.display = "block";
+              document.getElementById("error-message-otp").textContent = ""; // Clear any previous error message
+            })
+            .catch(function(error) {
+              document.getElementById("error-message-otp").textContent = "Error during verification: " + error.message;
+            });
         }
-
-        // Create PhoneAuthCredential using the verificationId and code
-        const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
-
-        // Sign in with the credential
-        signInWithCredential(auth, credential)
-          .then(function(result) {
-            console.log("User signed in successfully:", result);
-            alert("Phone number verified successfully!");
-          })
-          .catch(function(error) {
-            document.getElementById("error-message-otp").textContent = "Error during verification: " + error.message;
-          });
       });
     });
   </script>
